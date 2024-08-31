@@ -1,27 +1,26 @@
 "use client";
 
-import { useState, CSSProperties } from "react";
+import { useEffect, useState, CSSProperties } from "react";
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 import Typewriter from "typewriter-effect";
 import ClipLoader from "react-spinners/ClipLoader";
 
 export async function fetchValue(prompt: string) {
   console.log(process.env.GEMINI_API_KEY);
-  const genAI = new GoogleGenerativeAI(
-    process.env.NEXT_PUBLIC_GEMINI_API_KEY
-  );
+  const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const myPrompt = `
-    You are a content generator for my website. 
-    Please provide clear, concise, and engaging text responses based on the input prompt. 
-    Do not use stars or any special characters in your responses. 
-    Only output plain text. 
-    Dont use stars or hashtags.
-    The content should be suitable for a general audience and formatted appropriately for web display. 
-    Make sure the response is informative, accurate, and directly related to the input prompt.
-    Here is the prompt: 
-  `;
+      You are a content generator for my website. 
+      Please provide clear, concise, and engaging text responses based on the input prompt. 
+      Do not use stars or any special characters in your responses. 
+      Only output plain text. 
+      Dont use * or # in response.
+      Make the content short
+      The content should be suitable for a general audience and formatted appropriately for web display. 
+      Make sure the response is informative, accurate, and directly related to the input prompt.
+      Here is the prompt: 
+    `;
 
   const result = await model.generateContent(myPrompt + prompt);
   console.log(result.response.text);
@@ -31,22 +30,43 @@ export async function fetchValue(prompt: string) {
 export default function Home() {
   const [data, setData] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string | null>(null);
-  let [loading, setLoading] = useState(false);
-
-  let [color, setColor] = useState("#ffffff");
+  const [loading, setLoading] = useState(false);
+  const [color, setColor] = useState("#ffffff");
 
   const override: CSSProperties = {
     display: "block",
     margin: "0 auto",
     borderColor: "red",
   };
+
+  // This useEffect will run when 'data' changes
+  useEffect(() => {
+    if (data && data.trim()) {
+      console.log("Data for speech synthesis:", data);
+      const utterance = new SpeechSynthesisUtterance(data);
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.log("No valid data for speech synthesis");
+    }
+  }, [data]);
+
   async function handler() {
     setData(null);
     setLoading(true);
+
     if (prompt != null) {
-      const value = await fetchValue(prompt);
+      try {
+        const value = await fetchValue(prompt);
+        setData(value); // State update is asynchronous
+        console.log("Fetched Value:", value);
+      } catch (e) {
+        console.error("Error fetching value:", e);
+        setData("Error");
+      } finally {
+        setLoading(false);
+      }
+    } else {
       setLoading(false);
-      setData(value);
     }
   }
 
@@ -66,23 +86,23 @@ export default function Home() {
           Generate
         </button>
         <div className="max-w-lg">
-            {data ? (
-              <Typewriter
-                options={{
-                  cursor: "", // This hides the cursor after typing
-                }}
-                onInit={(typewriter) => {
-                  typewriter
-                    .changeDelay(20)
-                    .typeString(data)
-                    .callFunction(() => {
-                      console.log("String typed out!");
-                    })
-                    .start();
-                }}
-              />
-            ) : null}
-          
+          {data ? (
+            <Typewriter
+              options={{
+                cursor: "", // This hides the cursor after typing
+              }}
+              onInit={(typewriter) => {
+                typewriter
+                  .changeDelay(20)
+                  .typeString(data)
+                  .callFunction(() => {
+                    console.log("String typed out!");
+                  })
+                  .start();
+              }}
+            />
+          ) : null}
+
           <ClipLoader
             color={color}
             loading={loading}
